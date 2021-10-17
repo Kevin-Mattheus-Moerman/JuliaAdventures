@@ -1,3 +1,7 @@
+# This code is based on the gridap hyperelasticity demo. Here I expanded it to 3D and added Makie based model visualisation. 
+
+# Note this code currently requires: ] add Makie@0.15.2 GLMakie@0.4.6
+
 using Gridap 
 using FileIO
 using LineSearches: BackTracking
