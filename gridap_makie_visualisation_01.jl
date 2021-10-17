@@ -1,4 +1,5 @@
-# This code is based on the gridap hyperelasticity demo. Here I expanded it to 3D and added Makie based model visualisation. 
+# This code is based on the gridap hyperelasticity demo: https://gridap.github.io/Tutorials/dev/pages/t005_hyperelasticity/
+# Here I expanded it to 3D and added Makie based model visualisation. 
 
 # Note this code currently requires: ] add Makie@0.15.2 GLMakie@0.4.6
 
@@ -120,7 +121,6 @@ end
 #Do the work!
 runs()
 
-
 function getMakieMesh(model)
   #TO DO: Implement other element types, hex->quads only shown here
 
@@ -154,7 +154,7 @@ function getMakieMesh(model)
   end
 
   #Gather face and point set as GeometryBasics mesh
-  M=GeometryBasics.Mesh(pointSet, faceSet)
+  M=GeometryBasics.Mesh(P,F)
 
   return M, faceTypeLabel
 end
@@ -165,5 +165,5 @@ M,faceTypeLabel=getMakieMesh(model)
 #Visualize mesh
 fig = Figure()
 ax=Axis3(fig[1, 1], aspect = :data, xlabel = "x label", ylabel = "y label", zlabel = "z label", title = "Title")
-poly!(M, strokewidth=2,shading=false,color=RGBAf0(0.5, 0.5, 1, 0.5), transparency=true, overdraw=false)
+poly!(M[1], strokewidth=2,shading=false,color=RGBAf0(0.5, 0.5, 1, 0.5), transparency=true, overdraw=false)
 fig
