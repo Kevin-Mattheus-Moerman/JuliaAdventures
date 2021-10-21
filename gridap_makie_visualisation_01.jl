@@ -4,6 +4,9 @@
 # Note this code currently requires: ] add Makie@0.15.2 GLMakie@0.4.6
 
 using Gridap 
+using Gridap.Visualization
+using Gridap.ReferenceFEs
+using Gridap.Geometry
 using FileIO
 using LineSearches: BackTracking
 using GLMakie, GeometryBasics
@@ -11,6 +14,10 @@ using GLMakie, GeometryBasics
 # Material parameters
 const λ = 100.0
 const μ = 1.0
+
+# BC parameters
+disp_max = 0.8
+disp_inc = 0.1
 
 # Deformation Gradient
 F(∇u) = one(∇u) + ∇u'
@@ -45,8 +52,9 @@ end
 σ(∇u) = (1.0/J(F(∇u)))*F(∇u)⋅S(∇u)⋅(F(∇u))'
 
 # Model
+nElem=8
 domain = (0,1,0,1,0,1)
-partition = (3,3,3)
+partition = (nElem,nElem,nElem)
 model = CartesianDiscreteModel(domain,partition)
 
 # Define new boundaries
@@ -98,72 +106,125 @@ function run(x0,disp_x,step,nsteps,cache)
 
   #writevtk(Ω,"results_$(lpad(step,3,'0'))",cellfields=["uh"=>uh,"sigma"=>σ∘∇(uh)])
 
-  return get_free_dof_values(uh), cache
+  return get_free_dof_values(uh), uh, cache
 
 end
 
-function runs()
+function runs(disp_max,disp_inc)
 
- disp_max = 0.75
- disp_inc = 0.02
  nsteps = ceil(Int,abs(disp_max)/disp_inc)
 
  x0 = zeros(Float64,num_free_dofs(V))
+ nodalDisplacements = Vector{Vector{VectorValue{3, Float64}}}(undef,nsteps)
 
  cache = nothing
  for step in 1:nsteps
-   disp_x = step * disp_max / nsteps
-   x0, cache = run(x0,disp_x,step,nsteps,cache)
- end
+  disp_x = step * disp_max / nsteps
+  x0, uh, cache = run(x0,disp_x,step,nsteps,cache)
 
+  vd = visualization_data(Ω,"",cellfields=["u"=>uh])
+  nodalDisplacements[step] = vd[1].nodaldata["u"]
+ end
+ 
+ return nodalDisplacements
 end
 
-#Do the work!
-runs()
 
-function getMakieMesh(model)
+function nodesToPointset(V)
+  #Convert gridap coordinate type to Makie Point3f type
+  P=Vector{GeometryBasics.Point{3, Float32}}(undef,size(V,1))
+  for q=1:1:size(V,1)
+    P[q]=convert(GeometryBasics.Point,convert(Tuple{Float64, Float64, Float64},V[q]))
+  end
+  return P
+end
+
+function convertToFacePointSet(Ω)
   #TO DO: Implement other element types, hex->quads only shown here
 
   #Get gridap element and node descriptions
-  E=model.grid.cell_node_ids[:] #Elements
-  V=model.grid.node_coords[:] #Nodes/Vertices
-  
+  # E=Ω.cell_node_ids[:] #Elements
+  # V=Ω.node_coords[:] #Nodes/Vertices
+  vd=visualization_data(Ω,"");
+  grid = vd[1].grid
+  E = get_cell_node_ids(grid)
+  V = get_node_coordinates(grid)
+
   #Get faces and convert to QuadFace type
   F=Vector{QuadFace{Int64}}(undef,size(E,1)*6)
   for q=1:1:size(E,1)    
     F[q]=convert(QuadFace{Int64},E[q][[1,2,4,3],1])             #top
     F[q+size(E,1)*1]=convert(QuadFace{Int64},E[q][[5,6,8,7],1]) #bottom
     F[q+size(E,1)*2]=convert(QuadFace{Int64},E[q][[1,2,6,5],1]) #side 1
-    F[q+size(E,1)*3]=convert(QuadFace{Int64},E[q][[3,4,8,7],1]) #side 2
+    F[q+size(E,1)*3]=convert(QuadFace{Int64},E[q][[4,3,7,8],1]) #side 2
     F[q+size(E,1)*4]=convert(QuadFace{Int64},E[q][[2,4,8,6],1]) #front
-    F[q+size(E,1)*5]=convert(QuadFace{Int64},E[q][[2,4,8,6],1]) #back
+    F[q+size(E,1)*5]=convert(QuadFace{Int64},E[q][[3,1,5,7],1]) #back
   end
 
   #Create face type labels
-  faceTypeLabel=[ones(Int64,size(E,1)); 
+  faceTypeLabel=[ones(Int64,size(E,1))*1; 
                  ones(Int64,size(E,1))*2;
                  ones(Int64,size(E,1))*3;  
                  ones(Int64,size(E,1))*4;  
                  ones(Int64,size(E,1))*5;  
                  ones(Int64,size(E,1))*6;]
 
-  #Convert gridap coordinate type to Makie Point3f type
-  P=Vector{GeometryBasics.Point{3, Float32}}(undef,size(V,1))
-  for q=1:1:size(V,1)
-    P[q]=convert(Point3f,convert(Tuple{Float64, Float64, Float64},V[q]))
-  end
+  P=nodesToPointset(V)
 
-  #Gather face and point set as GeometryBasics mesh
-  M=GeometryBasics.Mesh(P,F)
-
-  return M, faceTypeLabel
+  return P,F, faceTypeLabel
 end
 
+
+#Do the work!
+nodalDisplacements = runs(disp_max,disp_inc)
+
 #Create makie compatible face and point set
-M,faceTypeLabel=getMakieMesh(model)
+pointSet,faceSet,faceTypeLabel=convertToFacePointSet(Ω)
+
+
+function getCoordStep(Ω,nodalDisplacement)
+  vd = visualization_data(Ω,"")
+  grid = vd[1].grid
+  V = get_node_coordinates(grid)
+  V2= V + nodalDisplacement
+  pointSet2=nodesToPointset(V2)
+  return pointSet2
+end
+
+function getMagnitude(U)
+  M=zeros(size(U,1))
+  for q=1:1:size(U,1)
+    M[q]=sqrt(U[q][1]^2 + U[q][2]^2 + U[q][3]^2)
+  end
+  return M
+end
+
+pointSet=getCoordStep(Ω,nodalDisplacements[1])
+
+#Gather face and point set as GeometryBasics mesh
+M=GeometryBasics.Mesh(pointSet,faceSet)
+
+nodalColor=getMagnitude(nodalDisplacements[1])
 
 #Visualize mesh
 fig = Figure()
-ax=Axis3(fig[1, 1], aspect = :data, xlabel = "x label", ylabel = "y label", zlabel = "z label", title = "Title")
-poly!(M[1], strokewidth=2,shading=false,color=RGBAf0(0.5, 0.5, 1, 0.5), transparency=true, overdraw=false)
+
+sl_step = Slider(fig[2, 1], range = 1:1:size(nodalDisplacements,1), startvalue = size(nodalDisplacements,1))
+
+nodalColor = lift(sl_step.value) do stepIndex
+  getMagnitude(nodalDisplacements[stepIndex])
+end
+
+M = lift(sl_step.value) do stepIndex
+  GeometryBasics.Mesh(getCoordStep(Ω,nodalDisplacements[stepIndex]),faceSet)
+end
+
+titleString = lift(sl_step.value) do stepIndex
+  "Step: "*string(stepIndex)
+end
+
+ax=Axis3(fig[1, 1], aspect = :data, xlabel = "X", ylabel = "Y", zlabel = "Z", title = titleString)
+poly!(M, strokewidth=2,shading=true,color=nodalColor, transparency=false, overdraw=false)
 fig
+
+# Colorbar(fig[1, 2], limits = (0, 10), colormap = :viridis,vertical = true)
