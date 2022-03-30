@@ -14,8 +14,8 @@ using Colors, ColorSchemes
 
 # Geometry and BC parameters
 sample_dim = [1,1,1] #Sample dimensions
-numElem    = [12,3,3] #Number of elements in each direction
-disp_max   = 2 #Maximum displacement
+numElem    = [5,5,5] #Number of elements in each direction
+disp_max   = 0.3 #Maximum displacement
 disp_inc   = disp_max/10 #Desired displacement increment per step
 degree     = 2 #Mesh order
 
