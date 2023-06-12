@@ -15,8 +15,8 @@ using Colors, ColorSchemes
 # Geometry and BC parameters
 sample_dim = [1,1,1] #Sample dimensions
 numElem    = [5,5,5] #Number of elements in each direction
-disp_max   = 0.3 #Maximum displacement
-disp_inc   = disp_max/10 #Desired displacement increment per step
+disp_max   = 0.5 #Maximum displacement
+disp_inc   = disp_max/16 #Desired displacement increment per step
 degree     = 2 #Mesh order
 
 # Material parameters
@@ -89,7 +89,7 @@ function run(x0,disp_x,step,nsteps,cache)
   U = TrialFESpace(V,[g0,g1])
 
   #FE problem
-  op = FEOperator(res,jac,U,V)
+  op = FEOperator(res,U,V)
 
   println("\n+++ Solving for disp_x $disp_x in step $step of $nsteps +++\n")
 
@@ -217,9 +217,9 @@ titleString = lift(sl_step.value) do stepIndex
 end
 
 ax=Axis3(fig[1, 1], aspect = :data, xlabel = "X", ylabel = "Y", zlabel = "Z", title = titleString)
-hp=poly!(M, strokewidth=1,shading=false,color=nodalColor, transparency=false, overdraw=false,
-colormap = (RGB(255.0, 215.0, 0.0)/255,RGB(0.0, 87.0, 183.0)/255),colorrange=(0,disp_max))
-Colorbar(fig[1, 2],hp.plots[1],label = "Displacement magnitude [mm]")
+hp=poly!(M, strokewidth=1,shading=true,color=nodalColor, transparency=false, overdraw=false,colormap = Reverse(:Spectral),
+colorrange=(0,disp_max))
+Colorbar(fig[1, 2],hp.plots[1],label = "Displacement magnitude [mm]") 
 fig
 
 # ax=Axis3(fig[1, 1], aspect = :data, xlabel = "X", ylabel = "Y", zlabel = "Z", title = titleString)
