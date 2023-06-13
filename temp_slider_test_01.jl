@@ -1,6 +1,8 @@
 
 using GLMakie
 
+GLMakie.activate!(inline=false) # To avoid plotting in plotpane as per: https://github.com/MakieOrg/Makie.jl/issues/2956
+
 xs = range(0, 10*pi, length = 150)
 ys = range(0, 10*pi, length = 150)
 

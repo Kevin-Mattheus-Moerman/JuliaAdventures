@@ -12,6 +12,8 @@ using LineSearches: BackTracking
 using GLMakie, GeometryBasics
 using Colors, ColorSchemes
 
+GLMakie.activate!(inline=false) # To avoid plotting in plotpane as per: https://github.com/MakieOrg/Makie.jl/issues/2956
+
 # Geometry and BC parameters
 sample_dim = [1,1,1] #Sample dimensions
 numElem    = [5,5,5] #Number of elements in each direction
