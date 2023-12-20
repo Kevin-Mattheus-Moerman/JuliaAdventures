@@ -9,8 +9,10 @@ using Gridap.ReferenceFEs
 using Gridap.Geometry
 using FileIO
 using LineSearches: BackTracking
-using GLMakie, GeometryBasics
-using Colors, ColorSchemes
+using GLMakie
+using GeometryBasics
+using Colors
+using ColorSchemes
 
 GLMakie.activate!(inline=false) # To avoid plotting in plotpane as per: https://github.com/MakieOrg/Makie.jl/issues/2956
 
@@ -219,7 +221,7 @@ titleString = lift(sl_step.value) do stepIndex
 end
 
 ax=Axis3(fig[1, 1], aspect = :data, xlabel = "X", ylabel = "Y", zlabel = "Z", title = titleString)
-hp=poly!(M, strokewidth=1,shading=true,color=nodalColor, transparency=false, overdraw=false,colormap = Reverse(:Spectral),
+hp=poly!(M, strokewidth=1,color=nodalColor, transparency=false, overdraw=false,colormap = Reverse(:Spectral),
 colorrange=(0,disp_max))
 Colorbar(fig[1, 2],hp.plots[1],label = "Displacement magnitude [mm]") 
 fig
